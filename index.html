@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0E1116">
+<title>Sistema Atómico</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E1116; --surface:#161B23; --surface2:#1C232E; --border:#242E3B;
+  --text:#E8EDF4; --muted:#8A96A6; --dim:#5A6575;
+  --fire:#FB923C; --ok:#34D399;
+  --c-ingles:#38BDF8; --c-estudio:#A78BFA; --c-proyectos:#34D399; --c-personal:#FBBF24;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:15px;line-height:1.5;padding-bottom:76px;min-height:100vh}
+h1,h2,h3,.display{font-family:'Archivo',system-ui,sans-serif}
+header{padding:18px 16px 8px;max-width:640px;margin:0 auto}
+header .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:600}
+header h1{font-size:24px;font-weight:800;letter-spacing:-.02em}
+header h1 .dot{color:var(--fire)}
+main{max-width:640px;margin:0 auto;padding:8px 16px 24px}
+.tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(14,17,22,.92);backdrop-filter:blur(12px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:50}
+.tabbar button{background:none;border:none;color:var(--dim);font-family:'Archivo';font-size:11px;font-weight:600;letter-spacing:.02em;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 12px;border-radius:10px}
+.tabbar button .ic{font-size:19px;line-height:1}
+.tabbar button.active{color:var(--text)}
+.tabbar button.active .ic{transform:translateY(-1px)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.card h2{font-size:15px;font-weight:700;margin-bottom:12px}
+.card h2 small{color:var(--muted);font-weight:500;font-family:'Inter';font-size:12px;margin-left:6px}
+/* ---- Hoy ---- */
+.today-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.today-head .date{color:var(--muted);font-size:13px;text-transform:capitalize}
+.ring{position:relative;width:64px;height:64px}
+.ring svg{transform:rotate(-90deg)}
+.ring .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Archivo';font-weight:800;font-size:15px}
+.alert{background:linear-gradient(135deg,rgba(251,146,60,.12),rgba(251,146,60,.04));border:1px solid rgba(251,146,60,.35);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;font-size:13.5px}
+.alert b{color:var(--fire)}
+.area-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin:16px 0 8px;display:flex;align-items:center;gap:7px}
+.area-label::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--ac)}
+.habit{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.habit.done{border-color:color-mix(in srgb,var(--ac) 45%,transparent);background:color-mix(in srgb,var(--ac) 7%,var(--surface))}
+.habit .chk{width:26px;height:26px;border-radius:50%;border:2px solid var(--dim);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#0E1116;transition:all .15s}
+.habit.done .chk{background:var(--ac);border-color:var(--ac)}
+.habit .info{flex:1;min-width:0}
+.habit .name{font-weight:600;font-size:14.5px}
+.habit.done .name{opacity:.75}
+.habit .cue{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.habit .streak{font-family:'Archivo';font-weight:700;font-size:13px;color:var(--fire);white-space:nowrap}
+.habit .streak.zero{color:var(--dim)}
+.empty{text-align:center;color:var(--muted);padding:32px 16px;font-size:14px}
+.empty .big{font-size:32px;margin-bottom:8px}
+/* ---- Heatmap átomos ---- */
+.atoms{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:4px;justify-content:start;overflow-x:auto;padding-bottom:4px}
+.atom{width:11px;height:11px;border-radius:50%;background:var(--surface2);flex-shrink:0}
+.atoms-legend{display:flex;gap:6px;align-items:center;margin-top:10px;font-size:11px;color:var(--dim)}
+.atoms-legend .atom{width:9px;height:9px}
+/* ---- Métricas ---- */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.stat .num{font-family:'Archivo';font-weight:800;font-size:26px;letter-spacing:-.02em}
+.stat .lbl{font-size:12px;color:var(--muted);margin-top:2px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:110px;padding-top:8px}
+.bar-w{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+.bar{width:100%;max-width:34px;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,var(--fire),#c2632a);min-height:3px}
+.bar-w span{font-size:10px;color:var(--dim)}
+.hstat{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.hstat:last-child{border-bottom:none}
+.hstat .dotc{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.hstat .n{flex:1;font-size:13.5px;font-weight:500;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hstat .v{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.hstat .v b{color:var(--text);font-family:'Archivo'}
+/* ---- Forms ---- */
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 5px}
+input[type=text],textarea,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;color:var(--text);font-family:'Inter';font-size:14px}
+textarea{resize:vertical;min-height:70px}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--fire);outline-offset:0;border-color:transparent}
+.days{display:flex;gap:6px}
+.days button{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 0;font-size:12px;font-weight:600;cursor:pointer}
+.days button.on{background:var(--fire);border-color:var(--fire);color:#0E1116}
+.btn{display:block;width:100%;background:var(--fire);color:#0E1116;border:none;border-radius:12px;padding:13px;font-family:'Archivo';font-weight:700;font-size:14.5px;cursor:pointer;margin-top:16px}
+.btn.ghost{background:none;border:1px solid var(--border);color:var(--muted);margin-top:8px}
+.btn.danger{background:none;border:1px solid rgba(248,113,113,.4);color:#F87171;margin-top:8px}
+.row-actions{display:flex;gap:8px}
+.row-actions .btn{margin-top:8px}
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--surface2);color:var(--muted)}
+.hlist-item{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.hlist-item:last-child{border-bottom:none}
+.hlist-item .dotc{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.hlist-item .meta{flex:1;min-width:0}
+.hlist-item .meta .n{font-weight:600;font-size:14px}
+.hlist-item .meta .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---- Modal ---- */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:640px;max-height:88vh;overflow-y:auto}
+.modal h3{font-size:17px;font-weight:700;margin-bottom:4px}
+.modal .sub{font-size:13px;color:var(--muted)}
+/* ---- Revisión ---- */
+.review-item{padding:13px 0;border-bottom:1px solid var(--border)}
+.review-item:last-child{border-bottom:none}
+.review-item .wk{font-family:'Archivo';font-weight:700;font-size:13.5px;display:flex;justify-content:space-between}
+.review-item .wk .sc{color:var(--fire)}
+.review-item p{font-size:13px;color:var(--muted);margin-top:4px;white-space:pre-wrap}
+.score-row{display:flex;gap:6px;margin-top:4px}
+.score-row button{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:9px 0;font-family:'Archivo';font-weight:700;cursor:pointer}
+.score-row button.on{background:var(--fire);border-color:var(--fire);color:#0E1116}
+.identity-quote{font-size:13px;color:var(--muted);font-style:italic;border-left:3px solid var(--fire);padding-left:12px;margin:4px 0 14px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">1% mejor cada día</div>
+  <h1>Sistema Atómico<span class="dot">.</span></h1>
+</header>
+<main id="app"></main>
+<nav class="tabbar" id="tabbar"></nav>
+<div id="modal-root"></div>
+<script>
+/* ================= Storage adapter =================
+   Usa window.storage (Claude artifacts) si existe;
+   si no, localStorage (GitHub Pages / PWA). */
+const Store = {
+  async get(k){
+    try{
+      if(window.storage){ try{ const r=await window.storage.get(k); return r?JSON.parse(r.value):null }catch(e){ return null } }
+      const v=localStorage.getItem(k); return v?JSON.parse(v):null;
+    }catch(e){ return null }
+  },
+  async set(k,v){
+    try{
+      if(window.storage){ await window.storage.set(k,JSON.stringify(v)); return }
+      localStorage.setItem(k,JSON.stringify(v));
+    }catch(e){}
+  }
+};
+
+/* ================= Estado ================= */
+const AREAS = {
+  ingles:{name:'Inglés',color:'var(--c-ingles)',hex:'#38BDF8'},
+  estudio:{name:'Estudio / Certs',color:'var(--c-estudio)',hex:'#A78BFA'},
+  proyectos:{name:'Proyectos',color:'var(--c-proyectos)',hex:'#34D399'},
+  personal:{name:'Personal',color:'var(--c-personal)',hex:'#FBBF24'}
+};
+const DOW = ['L','M','X','J','V','S','D']; // lunes=0 interno
+let state = { habits:[], logs:{}, reviews:[] };
+let tab = 'hoy';
+
+const seedHabits = [
+  {id:uid(),name:'Fluido · 15 min de inglés',area:'ingles',identity:'alguien fluido en inglés',cue:'Después de tomar café en la mañana',days:[0,1,2,3,4,5,6],archived:false},
+  {id:uid(),name:'Estudiar cert ServiceNow · 30 min',area:'estudio',identity:'un consultor certificado',cue:'Después de almorzar',days:[0,1,2,3,4],archived:false},
+  {id:uid(),name:'Avanzar 1 tarea de proyecto (KDP/SaaS)',area:'proyectos',identity:'alguien que termina lo que empieza',cue:'Después de cerrar el trabajo del día',days:[0,1,2,3,4],archived:false},
+  {id:uid(),name:'Leer 10 páginas',area:'personal',identity:'un lector constante',cue:'Antes de dormir',days:[0,1,2,3,4,5,6],archived:false}
+];
+
+function uid(){ return Math.random().toString(36).slice(2,10) }
+function todayKey(d=new Date()){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}` }
+function dowIdx(d){ return (d.getDay()+6)%7 } // lunes=0
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x }
+function fmtDate(d){ return d.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'}) }
+function weekKey(d=new Date()){ const x=addDays(d,-dowIdx(d)); return todayKey(x) }
+
+async function load(){
+  const s = await Store.get('sistema-atomico-v1');
+  if(s){ state = s }
+  else { state.habits = seedHabits; await save() }
+  render();
+}
+async function save(){ await Store.set('sistema-atomico-v1', state) }
+
+/* ================= Lógica ================= */
+function scheduledOn(h,date){ return !h.archived && h.days.includes(dowIdx(date)) }
+function isDone(h,key){ return !!(state.logs[key] && state.logs[key][h.id] && state.logs[key][h.id].done) }
+function streak(h){
+  let s=0, d=new Date();
+  // si hoy está agendado pero aún no hecho, no rompe la racha: parte desde ayer
+  if(scheduledOn(h,d) && !isDone(h,todayKey(d))) d=addDays(d,-1);
+  for(let i=0;i<730;i++){
+    if(scheduledOn(h,d)){
+      if(isDone(h,todayKey(d))) s++;
+      else break;
+    }
+    d=addDays(d,-1);
+  }
+  return s;
+}
+function bestStreak(h){
+  let best=0,cur=0,d=addDays(new Date(),-365);
+  for(let i=0;i<=365;i++){
+    if(scheduledOn(h,d)){
+      if(isDone(h,todayKey(d))){cur++;best=Math.max(best,cur)}else cur=0;
+    }
+    d=addDays(d,1);
+  }
+  return Math.max(best,streak(h));
+}
+function pct30(h){
+  let sch=0,done=0,d=addDays(new Date(),-29);
+  for(let i=0;i<30;i++){
+    if(scheduledOn(h,d)){sch++; if(isDone(h,todayKey(d)))done++}
+    d=addDays(d,1);
+  }
+  return sch?Math.round(done/sch*100):0;
+}
+function dayCompletion(date){
+  const hs=state.habits.filter(h=>scheduledOn(h,date));
+  if(!hs.length) return null;
+  const done=hs.filter(h=>isDone(h,todayKey(date))).length;
+  return done/hs.length;
+}
+function missedYesterdayTwice(){
+  // hábitos que fallaron ayer Y anteayer → alerta "nunca falles dos veces"
+  const y=addDays(new Date(),-1), y2=addDays(new Date(),-2);
+  return state.habits.filter(h=>
+    scheduledOn(h,y)&&!isDone(h,todayKey(y)) &&
+    scheduledOn(h,y2)&&!isDone(h,todayKey(y2))
+  );
+}
+function missedYesterday(){
+  const y=addDays(new Date(),-1);
+  return state.habits.filter(h=>scheduledOn(h,y)&&!isDone(h,todayKey(y)));
+}
+
+/* ================= Render ================= */
+function render(){
+  renderTabs();
+  const app=document.getElementById('app');
+  if(tab==='hoy') app.innerHTML=viewHoy();
+  else if(tab==='habitos') app.innerHTML=viewHabitos();
+  else if(tab==='metricas') app.innerHTML=viewMetricas();
+  else app.innerHTML=viewRevision();
+  bindEvents();
+}
+function renderTabs(){
+  const t=[['hoy','☀️','Hoy'],['habitos','⚛️','Hábitos'],['metricas','📈','Métricas'],['revision','🧭','Revisión']];
+  document.getElementById('tabbar').innerHTML=t.map(([id,ic,l])=>
+    `<button class="${tab===id?'active':''}" data-tab="${id}"><span class="ic">${ic}</span>${l}</button>`).join('');
+}
+
+function viewHoy(){
+  const today=new Date(), key=todayKey(today);
+  const hs=state.habits.filter(h=>scheduledOn(h,today));
+  const done=hs.filter(h=>isDone(h,key)).length;
+  const pct=hs.length?Math.round(done/hs.length*100):0;
+  const circ=2*Math.PI*26;
+  const twice=missedYesterdayTwice();
+  const missed=missedYesterday().filter(h=>!twice.includes(h));
+
+  let alerts='';
+  if(twice.length) alerts+=`<div class="alert">🔥 <b>Nunca falles dos veces.</b> Llevas 2 días sin: ${twice.map(h=>h.name).join(', ')}. Hoy es el día para retomar — aunque sea la versión de 2 minutos.</div>`;
+  else if(missed.length) alerts+=`<div class="alert">Ayer se te escapó: <b>${missed.map(h=>h.name).join(', ')}</b>. Un fallo es un accidente; dos es el inicio de un nuevo hábito. Hoy no falles.</div>`;
+
+  const byArea={};
+  hs.forEach(h=>{ (byArea[h.area]=byArea[h.area]||[]).push(h) });
+
+  let list='';
+  for(const [a,arr] of Object.entries(byArea)){
+    list+=`<div class="area-label" style="--ac:${AREAS[a].color};color:${AREAS[a].color}">${AREAS[a].name}</div>`;
+    list+=arr.map(h=>{
+      const d=isDone(h,key), s=streak(h);
+      return `<div class="habit ${d?'done':''}" style="--ac:${AREAS[h.area].color}" data-toggle="${h.id}">
+        <div class="chk">${d?'✓':''}</div>
+        <div class="info"><div class="name">${esc(h.name)}</div><div class="cue">${esc(h.cue||'')}</div></div>
+        <div class="streak ${s?'':'zero'}">${s?'🔥 '+s:'—'}</div>
+      </div>`;
+    }).join('');
+  }
+  if(!hs.length) list=`<div class="empty"><div class="big">⚛️</div>No hay hábitos agendados hoy.<br>Crea uno en la pestaña Hábitos.</div>`;
+
+  return `
+  <div class="card">
+    <div class="today-head">
+      <div>
+        <h2 style="margin-bottom:2px">Hoy <small>${done}/${hs.length} completados</small></h2>
+        <div class="date">${fmtDate(today)}</div>
+      </div>
+      <div class="ring">
+        <svg width="64" height="64"><circle cx="32" cy="32" r="26" fill="none" stroke="var(--surface2)" stroke-width="6"/>
+        <circle cx="32" cy="32" r="26" fill="none" stroke="var(--fire)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-pct/100)}"/></svg>
+        <div class="pct">${pct}%</div>
+      </div>
+    </div>
+    ${heatmapHTML(12)}
+  </div>
+  ${alerts}
+  ${list}`;
+}
+
+function heatmapHTML(weeks){
+  const today=new Date();
+  const end=addDays(today,6-dowIdx(today));
+  const start=addDays(end,-(weeks*7-1));
+  let cells='';
+  for(let i=0;i<weeks*7;i++){
+    const d=addDays(start,i);
+    const future=d>today;
+    const c=future?null:dayCompletion(d);
+    let bg='var(--surface2)',op=1;
+    if(future){op=.25}
+    else if(c!==null&&c>0){
+      bg='var(--fire)'; op=.25+c*.75;
+    }
+    cells+=`<div class="atom" style="background:${bg};opacity:${op}" title="${todayKey(d)}"></div>`;
+  }
+  return `<div class="atoms">${cells}</div>
+  <div class="atoms-legend">Menos <div class="atom" style="background:var(--surface2)"></div><div class="atom" style="background:var(--fire);opacity:.35"></div><div class="atom" style="background:var(--fire);opacity:.65"></div><div class="atom" style="background:var(--fire)"></div> Más · últimas ${weeks} semanas</div>`;
+}
+
+function viewHabitos(){
+  const act=state.habits.filter(h=>!h.archived);
+  return `
+  <div class="card">
+    <h2>Tus hábitos <small>${act.length} activos</small></h2>
+    ${act.length?act.map(h=>`
+      <div class="hlist-item" data-edit="${h.id}">
+        <div class="dotc" style="background:${AREAS[h.area].color}"></div>
+        <div class="meta">
+          <div class="n">${esc(h.name)}</div>
+          <div class="s">${h.cue?esc(h.cue)+' · ':''}${h.days.length===7?'todos los días':h.days.map(d=>DOW[d]).join(' ')}</div>
+        </div>
+        <span class="chip">🔥 ${streak(h)}</span>
+      </div>`).join(''):`<div class="empty">Sin hábitos aún.</div>`}
+  </div>
+  <button class="btn" data-new="1">+ Nuevo hábito</button>`;
+}
+
+function viewMetricas(){
+  const act=state.habits.filter(h=>!h.archived);
+  const totalStreak=act.reduce((m,h)=>Math.max(m,streak(h)),0);
+  // total átomos (checks) históricos
+  let atoms=0; Object.values(state.logs).forEach(day=>Object.values(day).forEach(e=>{if(e.done)atoms++}));
+  const avg30=act.length?Math.round(act.reduce((s,h)=>s+pct30(h),0)/act.length):0;
+  // barras: 8 semanas
+  let bars='';
+  for(let w=7;w>=0;w--){
+    const ws=addDays(new Date(),-dowIdx(new Date())-w*7);
+    let sch=0,done=0;
+    for(let i=0;i<7;i++){
+      const d=addDays(ws,i); if(d>new Date())break;
+      act.forEach(h=>{ if(scheduledOn(h,d)){sch++; if(isDone(h,todayKey(d)))done++} });
+    }
+    const p=sch?done/sch:0;
+    bars+=`<div class="bar-w"><div class="bar" style="height:${Math.max(p*100,3)}%"></div><span>${w===0?'esta':'-'+w}</span></div>`;
+  }
+  return `
+  <div class="stat-grid">
+    <div class="stat"><div class="num">🔥 ${totalStreak}</div><div class="lbl">Mejor racha activa</div></div>
+    <div class="stat"><div class="num">${avg30}%</div><div class="lbl">Cumplimiento 30 días</div></div>
+    <div class="stat"><div class="num">⚛️ ${atoms}</div><div class="lbl">Átomos acumulados</div></div>
+    <div class="stat"><div class="num">${act.length}</div><div class="lbl">Hábitos activos</div></div>
+  </div>
+  <div class="card"><h2>Cumplimiento semanal <small>últimas 8 semanas</small></h2><div class="bars">${bars}</div></div>
+  <div class="card"><h2>Por hábito <small>racha · mejor · 30d</small></h2>
+    ${act.map(h=>`<div class="hstat">
+      <div class="dotc" style="background:${AREAS[h.area].color}"></div>
+      <div class="n">${esc(h.name)}</div>
+      <div class="v">🔥 <b>${streak(h)}</b> · máx <b>${bestStreak(h)}</b> · <b>${pct30(h)}%</b></div>
+    </div>`).join('')||'<div class="empty">Sin datos aún.</div>'}
+  </div>`;
+}
+
+function viewRevision(){
+  const wk=weekKey();
+  const doneThis=state.reviews.some(r=>r.week===wk);
+  return `
+  <div class="card">
+    <h2>Revisión semanal</h2>
+    <div class="identity-quote">"No se trata de lo que quieres lograr, sino de en quién te quieres convertir." — James Clear</div>
+    ${doneThis
+      ?`<div style="font-size:13.5px;color:var(--ok)">✓ Ya hiciste la revisión de esta semana. La próxima se abre el lunes.</div>`
+      :`<button class="btn" data-review="1">Hacer revisión de esta semana</button>`}
+  </div>
+  <div class="card">
+    <h2>Historial <small>${state.reviews.length} revisiones</small></h2>
+    ${state.reviews.length?state.reviews.slice().reverse().map(r=>`
+      <div class="review-item">
+        <div class="wk"><span>Semana del ${r.week}</span><span class="sc">${r.score}/5</span></div>
+        ${r.good?`<p>✅ ${esc(r.good)}</p>`:''}
+        ${r.bad?`<p>⚠️ ${esc(r.bad)}</p>`:''}
+        ${r.adjust?`<p>🔧 ${esc(r.adjust)}</p>`:''}
+      </div>`).join(''):`<div class="empty">Aún no hay revisiones. La primera es la más importante.</div>`}
+  </div>`;
+}
+
+/* ================= Modales ================= */
+function openHabitModal(h){
+  const isNew=!h;
+  h=h||{id:uid(),name:'',area:'ingles',identity:'',cue:'',days:[0,1,2,3,4],archived:false};
+  const root=document.getElementById('modal-root');
+  root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
+    <h3>${isNew?'Nuevo hábito':'Editar hábito'}</h3>
+    <div class="sub">Hazlo obvio, atractivo, fácil y satisfactorio.</div>
+    <label>Hábito (empieza pequeño: versión de 2 minutos)</label>
+    <input type="text" id="f-name" value="${esc(h.name)}" placeholder="Ej: Fluido · 15 min de inglés">
+    <label>Área</label>
+    <select id="f-area">${Object.entries(AREAS).map(([k,a])=>`<option value="${k}" ${h.area===k?'selected':''}>${a.name}</option>`).join('')}</select>
+    <label>Identidad — "para ser…" (ley del cambio de identidad)</label>
+    <input type="text" id="f-identity" value="${esc(h.identity||'')}" placeholder="alguien fluido en inglés">
+    <label>Apilamiento — "Después de…" (hazlo obvio)</label>
+    <input type="text" id="f-cue" value="${esc(h.cue||'')}" placeholder="Después de tomar café en la mañana">
+    <label>Días</label>
+    <div class="days" id="f-days">${DOW.map((d,i)=>`<button data-d="${i}" class="${h.days.includes(i)?'on':''}">${d}</button>`).join('')}</div>
+    <button class="btn" id="f-save">Guardar hábito</button>
+    ${isNew?'':'<button class="btn danger" id="f-del">Archivar hábito</button>'}
+    <button class="btn ghost" id="f-cancel">Cancelar</button>
+  </div></div>`;
+  const days=new Set(h.days);
+  root.querySelectorAll('#f-days button').forEach(b=>b.onclick=()=>{
+    const d=+b.dataset.d; days.has(d)?days.delete(d):days.add(d); b.classList.toggle('on');
+  });
+  root.querySelector('#f-save').onclick=async()=>{
+    h.name=root.querySelector('#f-name').value.trim();
+    if(!h.name)return;
+    h.area=root.querySelector('#f-area').value;
+    h.identity=root.querySelector('#f-identity').value.trim();
+    h.cue=root.querySelector('#f-cue').value.trim();
+    h.days=[...days].sort();
+    if(isNew) state.habits.push(h);
+    await save(); closeModal(); render();
+  };
+  const del=root.querySelector('#f-del');
+  if(del) del.onclick=async()=>{ h.archived=true; await save(); closeModal(); render(); };
+  root.querySelector('#f-cancel').onclick=closeModal;
+  root.querySelector('#mbg').onclick=e=>{if(e.target.id==='mbg')closeModal()};
+}
+
+function openReviewModal(){
+  const act=state.habits.filter(h=>!h.archived);
+  // resumen automático de la semana
+  const ws=addDays(new Date(),-dowIdx(new Date()));
+  let sch=0,done=0;
+  for(let i=0;i<7;i++){const d=addDays(ws,i); if(d>new Date())break;
+    act.forEach(h=>{if(scheduledOn(h,d)){sch++;if(isDone(h,todayKey(d)))done++}})}
+  const pct=sch?Math.round(done/sch*100):0;
+  let score=3;
+  const root=document.getElementById('modal-root');
+  root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
+    <h3>Revisión semanal</h3>
+    <div class="sub">Esta semana llevas <b style="color:var(--fire)">${pct}%</b> de cumplimiento (${done}/${sch}).</div>
+    <label>✅ ¿Qué funcionó bien esta semana?</label>
+    <textarea id="r-good"></textarea>
+    <label>⚠️ ¿Qué se interpuso o falló?</label>
+    <textarea id="r-bad"></textarea>
+    <label>🔧 ¿Qué vas a ajustar la próxima semana? (más pequeño, otra señal, otro horario)</label>
+    <textarea id="r-adjust"></textarea>
+    <label>Puntaje de la semana</label>
+    <div class="score-row" id="r-score">${[1,2,3,4,5].map(n=>`<button data-s="${n}" class="${n===3?'on':''}">${n}</button>`).join('')}</div>
+    <button class="btn" id="r-save">Guardar revisión</button>
+    <button class="btn ghost" id="r-cancel">Cancelar</button>
+  </div></div>`;
+  root.querySelectorAll('#r-score button').forEach(b=>b.onclick=()=>{
+    score=+b.dataset.s;
+    root.querySelectorAll('#r-score button').forEach(x=>x.classList.toggle('on',+x.dataset.s===score));
+  });
+  root.querySelector('#r-save').onclick=async()=>{
+    state.reviews.push({week:weekKey(),score,
+      good:root.querySelector('#r-good').value.trim(),
+      bad:root.querySelector('#r-bad').value.trim(),
+      adjust:root.querySelector('#r-adjust').value.trim(),
+      date:todayKey()});
+    await save(); closeModal(); render();
+  };
+  root.querySelector('#r-cancel').onclick=closeModal;
+  root.querySelector('#mbg').onclick=e=>{if(e.target.id==='mbg')closeModal()};
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML='' }
+
+/* ================= Eventos ================= */
+function bindEvents(){
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+  document.querySelectorAll('[data-toggle]').forEach(el=>el.onclick=async()=>{
+    const id=el.dataset.toggle,key=todayKey();
+    state.logs[key]=state.logs[key]||{};
+    const cur=state.logs[key][id];
+    state.logs[key][id]={done:!(cur&&cur.done)};
+    await save(); render();
+  });
+  document.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>{
+    openHabitModal(state.habits.find(h=>h.id===el.dataset.edit));
+  });
+  const nb=document.querySelector('[data-new]'); if(nb)nb.onclick=()=>openHabitModal(null);
+  const rb=document.querySelector('[data-review]'); if(rb)rb.onclick=openReviewModal;
+}
+function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+
+load();
+
+// PWA: registrar service worker (solo en https/localhost)
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
