@@ -150,6 +150,25 @@ details.arch[open] summary::before{transform:rotate(90deg)}
 .data-note{font-size:12.5px;color:var(--muted);margin-bottom:4px}
 input[type=number]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;color:var(--text);font-family:'Inter';font-size:14px}
 .habit .note-line{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---- Logros ---- */
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.badge{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px 6px;text-align:center}
+.badge .be{font-size:22px}
+.badge .bn{font-size:10.5px;font-weight:600;color:var(--muted);margin-top:3px;line-height:1.25}
+.badge.locked{opacity:.32;filter:grayscale(1)}
+.badge.ok{border-color:rgba(251,146,60,.45)}
+/* ---- Bitácora ---- */
+.bit-entry{padding:10px 0;border-bottom:1px solid var(--border)}
+.bit-entry:last-child{border-bottom:none}
+.bit-entry .bh{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.bit-entry .bh .dotc{width:7px;height:7px;border-radius:50%}
+.bit-entry .bh b{color:var(--text);font-weight:600}
+.bit-entry .bh .bm{margin-left:auto;font-family:'Archivo';font-weight:700;color:var(--fire);white-space:nowrap}
+.bit-entry p{font-size:13px;margin-top:3px}
+.minarea{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13.5px}
+.minarea .dotc{width:8px;height:8px;border-radius:50%}
+.minarea .mn{margin-left:auto;font-family:'Archivo';font-weight:700}
+.atom[data-day]{cursor:pointer}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -312,6 +331,7 @@ function viewHoy(){
   const missed=rest?[]:missedYesterday().filter(h=>!twice.includes(h));
 
   let alerts='';
+  if(totalAtoms()>0 && daysSince(state.lastBackup)>=7) alerts+=`<div class="alert" style="border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.06)">💾 <b style="color:var(--ok)">Hora de respaldar.</b> ${state.lastBackup?'Tu último backup fue hace '+daysSince(state.lastBackup)+' días.':'Aún no has hecho un backup.'} <u data-export="1" style="cursor:pointer">Exportar ahora</u></div>`;
   if(rest) alerts+=`<div class="alert" style="border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.08)">🛌 <b style="color:var(--c-ingles)">Día de descanso.</b> Hoy no se rompen rachas. Descansar también es parte del sistema.</div>`;
   else if(twice.length) alerts+=`<div class="alert">🔥 <b>Nunca falles dos veces.</b> Llevas 2 días sin: ${twice.map(h=>h.name).join(', ')}. Hoy es el día para retomar — aunque sea la versión de 2 minutos.</div>`;
   else if(missed.length) alerts+=`<div class="alert">Ayer se te escapó: <b>${missed.map(h=>h.name).join(', ')}</b>. Un fallo es un accidente; dos es el inicio de un nuevo hábito. Hoy no falles.</div>`;
@@ -375,7 +395,7 @@ function heatmapHTML(weeks){
     else if(c!==null&&c>0){
       bg='var(--fire)'; op=.25+c*.75;
     }
-    cells+=`<div class="atom" style="background:${bg};opacity:${op}" title="${todayKey(d)}"></div>`;
+    cells+=`<div class="atom" style="background:${bg};opacity:${op}" title="${todayKey(d)}" ${future?'':`data-day="${todayKey(d)}"`}></div>`;
   }
   return `<div class="atoms">${cells}</div>
   <div class="atoms-legend">Menos <div class="atom" style="background:var(--surface2)"></div><div class="atom" style="background:var(--fire);opacity:.35"></div><div class="atom" style="background:var(--fire);opacity:.65"></div><div class="atom" style="background:var(--fire)"></div> Más · últimas ${weeks} semanas</div>`;
@@ -470,8 +490,7 @@ function openExamModal(){
 function viewMetricas(){
   const act=state.habits.filter(h=>!h.archived);
   const totalStreak=act.reduce((m,h)=>Math.max(m,streak(h)),0);
-  // total átomos (checks) históricos
-  let atoms=0; Object.values(state.logs).forEach(day=>Object.values(day).forEach(e=>{if(e.done)atoms++}));
+  const atoms=totalAtoms();
   const avg30=act.length?Math.round(act.reduce((s,h)=>s+pct30(h),0)/act.length):0;
   // barras: 8 semanas
   let bars='';
@@ -485,6 +504,10 @@ function viewMetricas(){
     const p=sch?done/sch:0;
     bars+=`<div class="bar-w"><div class="bar" style="height:${Math.max(p*100,3)}%"></div><span>${w===0?'esta':'-'+w}</span></div>`;
   }
+  const mins=weekMinutesByArea();
+  const minRows=Object.entries(mins).sort((a,b)=>b[1]-a[1]);
+  const totalMin=minRows.reduce((s,[,m])=>s+m,0);
+  const badges=achievements();
   return `
   <div class="stat-grid">
     <div class="stat"><div class="num">🔥 ${totalStreak}</div><div class="lbl">Mejor racha activa</div></div>
@@ -493,13 +516,24 @@ function viewMetricas(){
     <div class="stat"><div class="num">${act.length}</div><div class="lbl">Hábitos activos</div></div>
   </div>
   <div class="card"><h2>Cumplimiento semanal <small>últimas 8 semanas</small></h2><div class="bars">${bars}</div></div>
+  <div class="card"><h2>Minutos por área <small>esta semana · ${totalMin} min total</small></h2>
+    ${minRows.length?minRows.map(([a,m])=>`<div class="minarea"><div class="dotc" style="background:${AREAS[a].color}"></div>${AREAS[a].name}<span class="mn">${m} min</span></div>`).join(''):'<div class="empty">Registra minutos al marcar tus hábitos para ver esto.</div>'}
+  </div>
   <div class="card"><h2>Por hábito <small>racha · mejor · 30d</small></h2>
     ${act.map(h=>`<div class="hstat">
       <div class="dotc" style="background:${AREAS[h.area].color}"></div>
       <div class="n">${esc(h.name)}</div>
       <div class="v">🔥 <b>${streak(h)}</b> · máx <b>${bestStreak(h)}</b> · <b>${pct30(h)}%</b></div>
     </div>`).join('')||'<div class="empty">Sin datos aún.</div>'}
-  </div>`;
+  </div>
+  <div class="card"><h2>Logros <small>${badges.filter(b=>b.ok).length}/${badges.length}</small></h2>
+    <div class="badges">${badges.map(b=>`<div class="badge ${b.ok?'ok':'locked'}"><div class="be">${b.e}</div><div class="bn">${b.n}</div></div>`).join('')}</div>
+  </div>
+  <div class="card"><h2>Bitácora de estudio <small>últimos registros</small></h2>
+    <input type="text" id="bit-search" placeholder="Buscar en tus notas… (ej: flows, past simple)" style="margin-bottom:10px">
+    <div id="bit-list">${bitacoraListHTML('')}</div>
+  </div>
+  <button class="btn" data-share="1">📤 Compartir progreso como imagen</button>`;
 }
 
 function viewRevision(){
@@ -613,14 +647,15 @@ function openReviewModal(){
   root.querySelector('#r-cancel').onclick=closeModal;
   root.querySelector('#mbg').onclick=e=>{if(e.target.id==='mbg')closeModal()};
 }
-function openCheckModal(h){
-  const key=todayKey();
+function openCheckModal(h,key){
+  key=key||todayKey();
+  const isToday=key===todayKey();
   const e=(state.logs[key]||{})[h.id]||{};
   const done=!!e.done;
   const root=document.getElementById('modal-root');
   root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
     <h3>${esc(h.name)}</h3>
-    ${h.identity?`<div class="sub">Un voto más por ser <b style="color:var(--fire)">${esc(h.identity)}</b>.</div>`:''}
+    <div class="sub">${isToday?'':'📅 '+key+' · '}${h.identity?`Un voto más por ser <b style="color:var(--fire)">${esc(h.identity)}</b>.`:''}</div>
     <label>Minutos (opcional)</label>
     <input type="number" id="c-min" min="0" value="${e.min||''}" placeholder="15">
     <label>Nota — ¿qué avanzaste? (opcional)</label>
@@ -645,12 +680,150 @@ function openCheckModal(h){
   root.querySelector('#mbg').onclick=ev=>{if(ev.target.id==='mbg')closeModal()};
 }
 
+function openDayModal(key){
+  const date=new Date(key+'T00:00:00');
+  const hs=state.habits.filter(h=>scheduledOn(h,date));
+  const rest=!!state.restDays[key];
+  const root=document.getElementById('modal-root');
+  root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
+    <h3 style="text-transform:capitalize">${fmtDate(date)}</h3>
+    <div class="sub">Corrige lo que se te olvidó registrar. Toca un hábito para editarlo.</div>
+    <div style="margin-top:12px">
+    ${hs.length?hs.map(h=>{
+      const d=isDone(h,key);
+      return `<div class="habit ${d?'done':''}" style="--ac:${AREAS[h.area].color};margin-bottom:8px" data-dh="${h.id}">
+        <div class="chk">${d?'✓':''}</div>
+        <div class="info"><div class="name">${esc(h.name)}</div></div>
+      </div>`;
+    }).join(''):'<div class="empty">Nada agendado ese día.</div>'}
+    </div>
+    <button class="btn ghost" id="d-rest">🛌 ${rest?'Quitar día de descanso':'Marcar como día de descanso'}</button>
+    <button class="btn ghost" id="d-close">Cerrar</button>
+  </div></div>`;
+  root.querySelectorAll('[data-dh]').forEach(el=>el.onclick=()=>{
+    const h=state.habits.find(x=>x.id===el.dataset.dh);
+    closeModal(); if(h) openCheckModal(h,key);
+  });
+  root.querySelector('#d-rest').onclick=async()=>{
+    if(state.restDays[key]) delete state.restDays[key]; else state.restDays[key]=true;
+    await save(); closeModal(); render();
+  };
+  root.querySelector('#d-close').onclick=closeModal;
+  root.querySelector('#mbg').onclick=ev=>{if(ev.target.id==='mbg')closeModal()};
+}
+
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=`atomico-backup-${todayKey()}.json`;
   a.click();
+  URL.revokeObjectURL(a.href);
+  state.lastBackup=todayKey(); save().then(render);
+}
+
+function totalAtoms(){
+  let n=0; Object.values(state.logs).forEach(day=>Object.values(day).forEach(e=>{if(e.done)n++}));
+  return n;
+}
+function daysSince(key){
+  if(!key) return Infinity;
+  return Math.floor((new Date()-new Date(key+'T00:00:00'))/86400000);
+}
+function bitacoraEntries(q){
+  q=(q||'').toLowerCase();
+  const out=[];
+  Object.keys(state.logs).sort().reverse().forEach(day=>{
+    Object.entries(state.logs[day]).forEach(([hid,e])=>{
+      if(!e.done||(!e.min&&!e.note))return;
+      const h=state.habits.find(x=>x.id===hid); if(!h)return;
+      if(q && !((e.note||'').toLowerCase().includes(q)||h.name.toLowerCase().includes(q)))return;
+      out.push({day,h,e});
+    });
+  });
+  return out.slice(0,30);
+}
+function bitacoraListHTML(q){
+  const es=bitacoraEntries(q);
+  if(!es.length) return `<div class="empty">${q?'Sin resultados para esa búsqueda.':'Aún no hay registros con minutos o notas. Al marcar un hábito, anota qué avanzaste.'}</div>`;
+  return es.map(({day,h,e})=>`
+    <div class="bit-entry">
+      <div class="bh"><div class="dotc" style="background:${AREAS[h.area].color}"></div><b>${esc(h.name)}</b><span>· ${day}</span>${e.min?`<span class="bm">${e.min} min</span>`:''}</div>
+      ${e.note?`<p>${esc(e.note)}</p>`:''}
+    </div>`).join('');
+}
+function weekMinutesByArea(){
+  const ws=addDays(new Date(),-dowIdx(new Date()));
+  const tot={};
+  for(let i=0;i<7;i++){
+    const d=addDays(ws,i); if(d>new Date())break;
+    const day=state.logs[todayKey(d)]||{};
+    Object.entries(day).forEach(([hid,e])=>{
+      if(!e.done||!e.min)return;
+      const h=state.habits.find(x=>x.id===hid); if(!h)return;
+      tot[h.area]=(tot[h.area]||0)+e.min;
+    });
+  }
+  return tot;
+}
+function achievements(){
+  const best=state.habits.length?Math.max(...state.habits.map(h=>bestStreak(h))):0;
+  const atoms=totalAtoms();
+  const revs=state.reviews.length;
+  const examDone=state.exams.some(ex=>ex.topics.length&&ex.topics.every(t=>t.done));
+  return [
+    {e:'🔥',n:'Racha de 7',ok:best>=7},
+    {e:'🌋',n:'Racha de 30',ok:best>=30},
+    {e:'🏆',n:'Racha de 100',ok:best>=100},
+    {e:'⚛️',n:'10 átomos',ok:atoms>=10},
+    {e:'💫',n:'100 átomos',ok:atoms>=100},
+    {e:'🌌',n:'500 átomos',ok:atoms>=500},
+    {e:'🧭',n:'1ª revisión',ok:revs>=1},
+    {e:'🗺️',n:'5 revisiones',ok:revs>=5},
+    {e:'💾',n:'Backup hecho',ok:!!state.lastBackup},
+    {e:'🎯',n:'Meta completada',ok:examDone}
+  ];
+}
+async function shareImage(){
+  const c=document.createElement('canvas'); c.width=1080; c.height=1080;
+  const x=c.getContext('2d');
+  x.fillStyle='#0E1116'; x.fillRect(0,0,1080,1080);
+  x.fillStyle='#5A6575'; x.font='600 28px sans-serif'; x.fillText('1% MEJOR CADA DÍA',80,120);
+  x.fillStyle='#E8EDF4'; x.font='800 72px sans-serif'; x.fillText('Sistema Atómico',80,210);
+  x.fillStyle='#FB923C'; x.fillText('.',x.measureText('Sistema Atómico').width+80,210);
+  // stats
+  const act=state.habits.filter(h=>!h.archived);
+  const best=act.length?Math.max(...act.map(h=>streak(h))):0;
+  const avg=act.length?Math.round(act.reduce((s,h)=>s+pct30(h),0)/act.length):0;
+  const stats=[[`🔥 ${best}`,'racha activa'],[`⚛️ ${totalAtoms()}`,'átomos'],[`${avg}%`,'últimos 30 días']];
+  stats.forEach(([v,l],i)=>{
+    const sx=80+i*320;
+    x.fillStyle='#E8EDF4'; x.font='800 64px sans-serif'; x.fillText(v,sx,360);
+    x.fillStyle='#8A96A6'; x.font='500 26px sans-serif'; x.fillText(l,sx,405);
+  });
+  // heatmap 12 semanas
+  const weeks=12, cell=64, r=22, ox=80, oy=500;
+  const today=new Date(), end=addDays(today,6-dowIdx(today)), start=addDays(end,-(weeks*7-1));
+  for(let i=0;i<weeks*7;i++){
+    const d=addDays(start,i);
+    if(d>today)continue;
+    const col=Math.floor(i/7), row=i%7;
+    const comp=dayCompletion(d);
+    x.beginPath();
+    x.arc(ox+col*cell+r,oy+row*cell+r,r,0,Math.PI*2);
+    if(comp!==null&&comp>0){ x.globalAlpha=.25+comp*.75; x.fillStyle='#FB923C' }
+    else { x.globalAlpha=1; x.fillStyle='#1C232E' }
+    x.fill(); x.globalAlpha=1;
+  }
+  x.fillStyle='#5A6575'; x.font='500 26px sans-serif';
+  x.fillText('últimas 12 semanas · construido con constancia',80,1020);
+  const blob=await new Promise(res=>c.toBlob(res,'image/png'));
+  const file=new File([blob],'progreso-atomico.png',{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file],title:'Mi progreso'}); return }catch(e){}
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='progreso-atomico.png'; a.click();
   URL.revokeObjectURL(a.href);
 }
 function importData(file){
@@ -724,13 +897,20 @@ function bindEvents(){
     await save(); render();
   });
   // Datos
-  const eb=document.querySelector('[data-export]'); if(eb)eb.onclick=exportData;
+  document.querySelectorAll('[data-export]').forEach(b=>b.onclick=exportData);
   const ib=document.querySelector('[data-import]');
   if(ib) ib.onclick=()=>{
     const f=document.getElementById('import-file');
     f.onchange=()=>{ if(f.files[0]) importData(f.files[0]) };
     f.click();
   };
+  // Heatmap: editar días pasados
+  document.querySelectorAll('.atom[data-day]').forEach(el=>el.onclick=()=>openDayModal(el.dataset.day));
+  // Bitácora: búsqueda en vivo
+  const bs=document.getElementById('bit-search');
+  if(bs) bs.oninput=()=>{ document.getElementById('bit-list').innerHTML=bitacoraListHTML(bs.value.trim()) };
+  // Compartir imagen
+  const sh=document.querySelector('[data-share]'); if(sh)sh.onclick=shareImage;
 }
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
 
