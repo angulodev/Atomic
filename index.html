@@ -187,6 +187,20 @@ input[type=number]{width:100%;background:var(--surface2);border:1px solid var(--
 .tpl-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .tpl{background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
 .tpl:active{border-color:var(--fire);color:var(--text)}
+/* ---- Pendientes ---- */
+.task{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.task:last-child{border-bottom:none}
+.task .tchk{width:22px;height:22px;border-radius:7px;border:2px solid var(--dim);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#0E1116}
+.task.done .tchk{background:var(--ok);border-color:var(--ok)}
+.task .tt{flex:1;font-size:14px;min-width:0}
+.task.done .tt{opacity:.5;text-decoration:line-through}
+.task .due{font-size:11.5px;color:var(--dim);white-space:nowrap}
+.task .due.over{color:#F87171;font-weight:600}
+.task .due.today{color:var(--fire);font-weight:600}
+.add-task{display:flex;gap:8px;margin-top:12px}
+.add-task input[type=text]{flex:1}
+.add-task input[type=date]{width:44px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);padding:0 4px;font-family:'Inter';font-size:12px}
+.add-task button{background:var(--fire);border:none;color:#0E1116;border-radius:10px;padding:0 16px;font-weight:800;font-size:18px;cursor:pointer}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -241,6 +255,7 @@ async function load(){
   if(s){ state = s }
   state.exams = state.exams || [];
   state.restDays = state.restDays || {};
+  state.tasks = state.tasks || [];
   render();
   if(!state.habits.length && !state.onboarded) openOnboarding();
 }
@@ -419,6 +434,29 @@ function viewHoy(){
     ${votes.map(([id,n])=>`<div class="vote"><span class="vn">${n}×</span><span class="vt">por ser <b>${esc(id)}</b></span></div>`).join('')}
   </div>`:'';
 
+  const pend=state.tasks.filter(t=>!t.done).sort((a,b)=>(a.due||'9999')<(b.due||'9999')?-1:1);
+  const doneTasks=state.tasks.filter(t=>t.done);
+  const tKey=todayKey();
+  const taskRow=t=>{
+    let due='';
+    if(t.due){
+      const cls=t.due<tKey?'over':t.due===tKey?'today':'';
+      const lbl=t.due<tKey?'venció '+t.due:t.due===tKey?'vence hoy':t.due;
+      due=`<span class="due ${cls}">${lbl}</span>`;
+    }
+    return `<div class="task ${t.done?'done':''}" data-task="${t.id}"><div class="tchk">${t.done?'✓':''}</div><div class="tt">${esc(t.t)}</div>${due}</div>`;
+  };
+  const tasksCard=`<div class="card" style="margin-top:14px">
+    <h2>Pendientes <small>cosas de una sola vez</small></h2>
+    ${pend.map(taskRow).join('')||(doneTasks.length?'':'<div class="empty" style="padding:14px">Nada pendiente. Agrega lo que no puede olvidarse.</div>')}
+    ${doneTasks.length?`<details class="arch" style="margin-top:8px"><summary>Completados (${doneTasks.length})</summary><div style="margin-top:6px">${doneTasks.map(taskRow).join('')}</div><button class="mini red" data-cleartasks="1" style="margin-top:10px">Borrar completados</button></details>`:''}
+    <div class="add-task">
+      <input type="text" id="task-text" placeholder="Ej: pagar la cuenta de luz…">
+      <input type="date" id="task-due" title="Fecha límite (opcional)">
+      <button data-addtask="1">+</button>
+    </div>
+  </div>`;
+
   return `
   <div class="card">
     <div class="today-head">
@@ -437,6 +475,7 @@ function viewHoy(){
   <button class="rest-chip ${rest?'on':''}" data-rest="1">🛌 ${rest?'Hoy es día de descanso · tocar para desmarcar':'Marcar hoy como descanso'}</button>
   ${alerts}
   ${list}
+  ${tasksCard}
   ${votesCard}`;
 }
 
@@ -981,6 +1020,28 @@ function bindEvents(){
     const f=document.getElementById('import-file');
     f.onchange=()=>{ if(f.files[0]) importData(f.files[0]) };
     f.click();
+  };
+  // Pendientes (tareas de una vez)
+  const at=document.querySelector('[data-addtask]');
+  if(at) at.onclick=async()=>{
+    const txt=document.getElementById('task-text').value.trim();
+    if(!txt)return;
+    const due=document.getElementById('task-due').value||null;
+    state.tasks.push({id:uid(),t:txt,...(due?{due}:{}),done:false});
+    await save(); render();
+  };
+  const tt=document.getElementById('task-text');
+  if(tt) tt.onkeydown=e=>{ if(e.key==='Enter') document.querySelector('[data-addtask]').click() };
+  document.querySelectorAll('[data-task]').forEach(el=>el.onclick=async()=>{
+    const t=state.tasks.find(x=>x.id===el.dataset.task); if(!t)return;
+    t.done=!t.done;
+    await save(); render();
+  });
+  const ct=document.querySelector('[data-cleartasks]');
+  if(ct) ct.onclick=async e=>{
+    e.stopPropagation();
+    state.tasks=state.tasks.filter(t=>!t.done);
+    await save(); render();
   };
   // Heatmap: editar días pasados
   document.querySelectorAll('.atom[data-day]').forEach(el=>el.onclick=()=>openDayModal(el.dataset.day));
