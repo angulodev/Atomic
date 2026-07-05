@@ -98,6 +98,15 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--fire);outline-of
 .hlist-item .meta{flex:1;min-width:0}
 .hlist-item .meta .n{font-weight:600;font-size:14px}
 .hlist-item .meta .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---- Archivados ---- */
+details.arch summary{cursor:pointer;font-family:'Archivo';font-weight:700;font-size:14px;color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px}
+details.arch summary::before{content:'▸';transition:transform .15s}
+details.arch[open] summary::before{transform:rotate(90deg)}
+.arch-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
+.arch-item:last-child{border-bottom:none}
+.arch-item .n{flex:1;font-size:13.5px;color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mini.red{color:#F87171;border-color:rgba(248,113,113,.35)}
 /* ---- Modal ---- */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:flex-end;justify-content:center}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:640px;max-height:88vh;overflow-y:auto}
@@ -316,6 +325,7 @@ function heatmapHTML(weeks){
 
 function viewHabitos(){
   const act=state.habits.filter(h=>!h.archived);
+  const arch=state.habits.filter(h=>h.archived);
   return `
   <div class="card">
     <h2>Tus hábitos <small>${act.length} activos</small></h2>
@@ -329,7 +339,22 @@ function viewHabitos(){
         <span class="chip">🔥 ${streak(h)}</span>
       </div>`).join(''):`<div class="empty">Sin hábitos aún.</div>`}
   </div>
-  <button class="btn" data-new="1">+ Nuevo hábito</button>`;
+  <button class="btn" data-new="1">+ Nuevo hábito</button>
+  ${arch.length?`
+  <div class="card" style="margin-top:12px">
+    <details class="arch">
+      <summary>Archivados (${arch.length})</summary>
+      <div style="margin-top:10px">
+      ${arch.map(h=>`
+        <div class="arch-item">
+          <div class="dotc" style="background:${AREAS[h.area].color};opacity:.5"></div>
+          <div class="n">${esc(h.name)}</div>
+          <button class="mini" data-restore="${h.id}">Restaurar</button>
+          <button class="mini red" data-delete="${h.id}">Eliminar</button>
+        </div>`).join('')}
+      </div>
+    </details>
+  </div>`:''}`;
 }
 
 function viewMetricas(){
@@ -487,6 +512,20 @@ function bindEvents(){
     openHabitModal(state.habits.find(h=>h.id===el.dataset.edit));
   });
   const nb=document.querySelector('[data-new]'); if(nb)nb.onclick=()=>openHabitModal(null);
+  document.querySelectorAll('[data-restore]').forEach(b=>b.onclick=async e=>{
+    e.stopPropagation();
+    const h=state.habits.find(x=>x.id===b.dataset.restore);
+    if(h){h.archived=false; await save(); render()}
+  });
+  document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=async e=>{
+    e.stopPropagation();
+    const h=state.habits.find(x=>x.id===b.dataset.delete);
+    if(!h)return;
+    if(!confirm(`¿Eliminar "${h.name}" definitivamente? Se borra también su historial de checks. Esto no se puede deshacer.`))return;
+    state.habits=state.habits.filter(x=>x.id!==h.id);
+    Object.values(state.logs).forEach(day=>{ delete day[h.id] });
+    await save(); render();
+  });
   const rb=document.querySelector('[data-review]'); if(rb)rb.onclick=openReviewModal;
 }
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
