@@ -122,6 +122,34 @@ details.arch[open] summary::before{transform:rotate(90deg)}
 .score-row button{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:9px 0;font-family:'Archivo';font-weight:700;cursor:pointer}
 .score-row button.on{background:var(--fire);border-color:var(--fire);color:#0E1116}
 .identity-quote{font-size:13px;color:var(--muted);font-style:italic;border-left:3px solid var(--fire);padding-left:12px;margin:4px 0 14px}
+/* ---- Metas / examen ---- */
+.exam{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.exam .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.exam .top h3{font-size:15.5px;font-weight:700}
+.exam .cd{font-family:'Archivo';font-weight:800;color:var(--fire);font-size:14px;white-space:nowrap}
+.exam .cd.late{color:#F87171}
+.pbar{height:7px;background:var(--surface2);border-radius:99px;margin:12px 0;overflow:hidden}
+.pbar div{height:100%;background:linear-gradient(90deg,var(--fire),#FBBF24);border-radius:99px}
+.topic{display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer}
+.topic .tchk{width:20px;height:20px;border-radius:6px;border:2px solid var(--dim);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#0E1116}
+.topic.done .tchk{background:var(--ok);border-color:var(--ok)}
+.topic.done .tt{opacity:.55;text-decoration:line-through}
+.topic .tt{font-size:13.5px;flex:1}
+.add-topic{display:flex;gap:8px;margin-top:10px}
+.add-topic input{flex:1}
+.add-topic button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:0 16px;font-weight:700;cursor:pointer}
+/* ---- Votos de identidad ---- */
+.vote{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13.5px}
+.vote .vn{font-family:'Archivo';font-weight:800;color:var(--fire);min-width:34px;text-align:right}
+.vote .vt{color:var(--muted)}
+.vote .vt b{color:var(--text);font-weight:600}
+/* ---- Descanso ---- */
+.rest-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:99px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer;margin-bottom:12px}
+.rest-chip.on{background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.4);color:var(--c-ingles)}
+/* ---- Datos ---- */
+.data-note{font-size:12.5px;color:var(--muted);margin-bottom:4px}
+input[type=number]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;color:var(--text);font-family:'Inter';font-size:14px}
+.habit .note-line{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -160,7 +188,7 @@ const AREAS = {
   personal:{name:'Personal',color:'var(--c-personal)',hex:'#FBBF24'}
 };
 const DOW = ['L','M','X','J','V','S','D']; // lunes=0 interno
-let state = { habits:[], logs:{}, reviews:[] };
+let state = { habits:[], logs:{}, reviews:[], exams:[], restDays:{} };
 let tab = 'hoy';
 
 const seedHabits = [
@@ -181,19 +209,23 @@ async function load(){
   const s = await Store.get('sistema-atomico-v1');
   if(s){ state = s }
   else { state.habits = seedHabits; await save() }
+  state.exams = state.exams || [];
+  state.restDays = state.restDays || {};
   render();
 }
 async function save(){ await Store.set('sistema-atomico-v1', state) }
 
 /* ================= Lógica ================= */
 function scheduledOn(h,date){ return !h.archived && h.days.includes(dowIdx(date)) }
+function isRest(date){ return !!state.restDays[todayKey(date)] }
+function schedActive(h,date){ return scheduledOn(h,date) && !isRest(date) } // descanso no rompe rachas
 function isDone(h,key){ return !!(state.logs[key] && state.logs[key][h.id] && state.logs[key][h.id].done) }
 function streak(h){
   let s=0, d=new Date();
   // si hoy está agendado pero aún no hecho, no rompe la racha: parte desde ayer
-  if(scheduledOn(h,d) && !isDone(h,todayKey(d))) d=addDays(d,-1);
+  if(schedActive(h,d) && !isDone(h,todayKey(d))) d=addDays(d,-1);
   for(let i=0;i<730;i++){
-    if(scheduledOn(h,d)){
+    if(schedActive(h,d)){
       if(isDone(h,todayKey(d))) s++;
       else break;
     }
@@ -204,7 +236,7 @@ function streak(h){
 function bestStreak(h){
   let best=0,cur=0,d=addDays(new Date(),-365);
   for(let i=0;i<=365;i++){
-    if(scheduledOn(h,d)){
+    if(schedActive(h,d)){
       if(isDone(h,todayKey(d))){cur++;best=Math.max(best,cur)}else cur=0;
     }
     d=addDays(d,1);
@@ -214,12 +246,13 @@ function bestStreak(h){
 function pct30(h){
   let sch=0,done=0,d=addDays(new Date(),-29);
   for(let i=0;i<30;i++){
-    if(scheduledOn(h,d)){sch++; if(isDone(h,todayKey(d)))done++}
+    if(schedActive(h,d)){sch++; if(isDone(h,todayKey(d)))done++}
     d=addDays(d,1);
   }
   return sch?Math.round(done/sch*100):0;
 }
 function dayCompletion(date){
+  if(isRest(date)) return null;
   const hs=state.habits.filter(h=>scheduledOn(h,date));
   if(!hs.length) return null;
   const done=hs.filter(h=>isDone(h,todayKey(date))).length;
@@ -229,13 +262,26 @@ function missedYesterdayTwice(){
   // hábitos que fallaron ayer Y anteayer → alerta "nunca falles dos veces"
   const y=addDays(new Date(),-1), y2=addDays(new Date(),-2);
   return state.habits.filter(h=>
-    scheduledOn(h,y)&&!isDone(h,todayKey(y)) &&
-    scheduledOn(h,y2)&&!isDone(h,todayKey(y2))
+    schedActive(h,y)&&!isDone(h,todayKey(y)) &&
+    schedActive(h,y2)&&!isDone(h,todayKey(y2))
   );
 }
 function missedYesterday(){
   const y=addDays(new Date(),-1);
-  return state.habits.filter(h=>scheduledOn(h,y)&&!isDone(h,todayKey(y)));
+  return state.habits.filter(h=>schedActive(h,y)&&!isDone(h,todayKey(y)));
+}
+function identityVotes(){
+  // votos de esta semana (lunes→hoy) agrupados por identidad
+  const ws=addDays(new Date(),-dowIdx(new Date()));
+  const votes={};
+  state.habits.forEach(h=>{
+    if(!h.identity) return;
+    for(let i=0;i<7;i++){
+      const d=addDays(ws,i); if(d>new Date())break;
+      if(isDone(h,todayKey(d))) votes[h.identity]=(votes[h.identity]||0)+1;
+    }
+  });
+  return Object.entries(votes).sort((a,b)=>b[1]-a[1]);
 }
 
 /* ================= Render ================= */
@@ -244,27 +290,30 @@ function render(){
   const app=document.getElementById('app');
   if(tab==='hoy') app.innerHTML=viewHoy();
   else if(tab==='habitos') app.innerHTML=viewHabitos();
+  else if(tab==='metas') app.innerHTML=viewMetas();
   else if(tab==='metricas') app.innerHTML=viewMetricas();
   else app.innerHTML=viewRevision();
   bindEvents();
 }
 function renderTabs(){
-  const t=[['hoy','☀️','Hoy'],['habitos','⚛️','Hábitos'],['metricas','📈','Métricas'],['revision','🧭','Revisión']];
+  const t=[['hoy','☀️','Hoy'],['habitos','⚛️','Hábitos'],['metas','🎯','Metas'],['metricas','📈','Métricas'],['revision','🧭','Revisión']];
   document.getElementById('tabbar').innerHTML=t.map(([id,ic,l])=>
     `<button class="${tab===id?'active':''}" data-tab="${id}"><span class="ic">${ic}</span>${l}</button>`).join('');
 }
 
 function viewHoy(){
   const today=new Date(), key=todayKey(today);
+  const rest=isRest(today);
   const hs=state.habits.filter(h=>scheduledOn(h,today));
   const done=hs.filter(h=>isDone(h,key)).length;
   const pct=hs.length?Math.round(done/hs.length*100):0;
   const circ=2*Math.PI*26;
-  const twice=missedYesterdayTwice();
-  const missed=missedYesterday().filter(h=>!twice.includes(h));
+  const twice=rest?[]:missedYesterdayTwice();
+  const missed=rest?[]:missedYesterday().filter(h=>!twice.includes(h));
 
   let alerts='';
-  if(twice.length) alerts+=`<div class="alert">🔥 <b>Nunca falles dos veces.</b> Llevas 2 días sin: ${twice.map(h=>h.name).join(', ')}. Hoy es el día para retomar — aunque sea la versión de 2 minutos.</div>`;
+  if(rest) alerts+=`<div class="alert" style="border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.08)">🛌 <b style="color:var(--c-ingles)">Día de descanso.</b> Hoy no se rompen rachas. Descansar también es parte del sistema.</div>`;
+  else if(twice.length) alerts+=`<div class="alert">🔥 <b>Nunca falles dos veces.</b> Llevas 2 días sin: ${twice.map(h=>h.name).join(', ')}. Hoy es el día para retomar — aunque sea la versión de 2 minutos.</div>`;
   else if(missed.length) alerts+=`<div class="alert">Ayer se te escapó: <b>${missed.map(h=>h.name).join(', ')}</b>. Un fallo es un accidente; dos es el inicio de un nuevo hábito. Hoy no falles.</div>`;
 
   const byArea={};
@@ -274,15 +323,22 @@ function viewHoy(){
   for(const [a,arr] of Object.entries(byArea)){
     list+=`<div class="area-label" style="--ac:${AREAS[a].color};color:${AREAS[a].color}">${AREAS[a].name}</div>`;
     list+=arr.map(h=>{
-      const d=isDone(h,key), s=streak(h);
+      const e=(state.logs[key]||{})[h.id]||{};
+      const d=!!e.done, s=streak(h);
+      const extra=d&&(e.min||e.note)?`<div class="note-line">${e.min?e.min+' min':''}${e.min&&e.note?' · ':''}${esc(e.note||'')}</div>`:'';
       return `<div class="habit ${d?'done':''}" style="--ac:${AREAS[h.area].color}" data-toggle="${h.id}">
         <div class="chk">${d?'✓':''}</div>
-        <div class="info"><div class="name">${esc(h.name)}</div><div class="cue">${esc(h.cue||'')}</div></div>
+        <div class="info"><div class="name">${esc(h.name)}</div><div class="cue">${esc(h.cue||'')}</div>${extra}</div>
         <div class="streak ${s?'':'zero'}">${s?'🔥 '+s:'—'}</div>
       </div>`;
     }).join('');
   }
   if(!hs.length) list=`<div class="empty"><div class="big">⚛️</div>No hay hábitos agendados hoy.<br>Crea uno en la pestaña Hábitos.</div>`;
+
+  const votes=identityVotes();
+  const votesCard=votes.length?`<div class="card"><h2>Votos de identidad <small>esta semana</small></h2>
+    ${votes.map(([id,n])=>`<div class="vote"><span class="vn">${n}×</span><span class="vt">por ser <b>${esc(id)}</b></span></div>`).join('')}
+  </div>`:'';
 
   return `
   <div class="card">
@@ -299,8 +355,10 @@ function viewHoy(){
     </div>
     ${heatmapHTML(12)}
   </div>
+  <button class="rest-chip ${rest?'on':''}" data-rest="1">🛌 ${rest?'Hoy es día de descanso · tocar para desmarcar':'Marcar hoy como descanso'}</button>
   ${alerts}
-  ${list}`;
+  ${list}
+  ${votesCard}`;
 }
 
 function heatmapHTML(weeks){
@@ -355,6 +413,58 @@ function viewHabitos(){
       </div>
     </details>
   </div>`:''}`;
+}
+
+function viewMetas(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const cards=state.exams.map(ex=>{
+    const target=new Date(ex.date+'T00:00:00');
+    const days=Math.round((target-today)/86400000);
+    const total=ex.topics.length, done=ex.topics.filter(t=>t.done).length;
+    const p=total?Math.round(done/total*100):0;
+    return `<div class="exam">
+      <div class="top">
+        <h3>${esc(ex.name)}</h3>
+        <span class="cd ${days<0?'late':''}">${days>0?`${days} días`:days===0?'¡Hoy!':`hace ${-days} días`}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">${ex.date} · ${done}/${total} temas · ${p}%</div>
+      <div class="pbar"><div style="width:${p}%"></div></div>
+      ${ex.topics.map(t=>`<div class="topic ${t.done?'done':''}" data-topic="${ex.id}|${t.id}">
+        <div class="tchk">${t.done?'✓':''}</div><div class="tt">${esc(t.t)}</div>
+      </div>`).join('')}
+      <div class="add-topic">
+        <input type="text" placeholder="Agregar tema del temario…" data-topicinput="${ex.id}">
+        <button data-addtopic="${ex.id}">+</button>
+      </div>
+      <button class="btn danger" data-delexam="${ex.id}" style="margin-top:12px">Eliminar meta</button>
+    </div>`;
+  }).join('');
+  return `
+  ${cards||`<div class="card"><div class="empty"><div class="big">🎯</div>Sin metas activas.<br>Crea una con fecha objetivo — ideal para tu cert de ServiceNow.</div></div>`}
+  <button class="btn" data-newexam="1">+ Nueva meta con fecha</button>`;
+}
+
+function openExamModal(){
+  const root=document.getElementById('modal-root');
+  root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
+    <h3>Nueva meta</h3>
+    <div class="sub">Un examen, certificación o entrega con fecha límite.</div>
+    <label>Nombre</label>
+    <input type="text" id="e-name" placeholder="Ej: Cert ServiceNow CSA">
+    <label>Fecha objetivo</label>
+    <input type="text" id="e-date" placeholder="AAAA-MM-DD" inputmode="numeric">
+    <button class="btn" id="e-save">Crear meta</button>
+    <button class="btn ghost" id="e-cancel">Cancelar</button>
+  </div></div>`;
+  root.querySelector('#e-save').onclick=async()=>{
+    const name=root.querySelector('#e-name').value.trim();
+    const date=root.querySelector('#e-date').value.trim();
+    if(!name||!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Completa el nombre y la fecha en formato AAAA-MM-DD');return}
+    state.exams.push({id:uid(),name,date,topics:[]});
+    await save(); closeModal(); render();
+  };
+  root.querySelector('#e-cancel').onclick=closeModal;
+  root.querySelector('#mbg').onclick=e=>{if(e.target.id==='mbg')closeModal()};
 }
 
 function viewMetricas(){
@@ -412,6 +522,13 @@ function viewRevision(){
         ${r.bad?`<p>⚠️ ${esc(r.bad)}</p>`:''}
         ${r.adjust?`<p>🔧 ${esc(r.adjust)}</p>`:''}
       </div>`).join(''):`<div class="empty">Aún no hay revisiones. La primera es la más importante.</div>`}
+  </div>
+  <div class="card">
+    <h2>Datos</h2>
+    <div class="data-note">Tus datos viven solo en este dispositivo. Haz un respaldo cada cierto tiempo.</div>
+    <button class="btn" data-export="1">⬇️ Exportar copia (JSON)</button>
+    <button class="btn ghost" data-import="1">⬆️ Importar backup</button>
+    <input type="file" id="import-file" accept=".json,application/json" style="display:none">
   </div>`;
 }
 
@@ -496,18 +613,76 @@ function openReviewModal(){
   root.querySelector('#r-cancel').onclick=closeModal;
   root.querySelector('#mbg').onclick=e=>{if(e.target.id==='mbg')closeModal()};
 }
+function openCheckModal(h){
+  const key=todayKey();
+  const e=(state.logs[key]||{})[h.id]||{};
+  const done=!!e.done;
+  const root=document.getElementById('modal-root');
+  root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
+    <h3>${esc(h.name)}</h3>
+    ${h.identity?`<div class="sub">Un voto más por ser <b style="color:var(--fire)">${esc(h.identity)}</b>.</div>`:''}
+    <label>Minutos (opcional)</label>
+    <input type="number" id="c-min" min="0" value="${e.min||''}" placeholder="15">
+    <label>Nota — ¿qué avanzaste? (opcional)</label>
+    <textarea id="c-note" placeholder="Ej: simple past en Fluido, módulo de flows…">${esc(e.note||'')}</textarea>
+    <button class="btn" id="c-save">${done?'Guardar cambios':'Marcar como hecho ✓'}</button>
+    ${done?'<button class="btn danger" id="c-undo">Desmarcar</button>':''}
+    <button class="btn ghost" id="c-cancel">Cancelar</button>
+  </div></div>`;
+  root.querySelector('#c-save').onclick=async()=>{
+    const min=parseInt(root.querySelector('#c-min').value)||0;
+    const note=root.querySelector('#c-note').value.trim();
+    state.logs[key]=state.logs[key]||{};
+    state.logs[key][h.id]={done:true,...(min?{min}:{}),...(note?{note}:{})};
+    await save(); closeModal(); render();
+  };
+  const undo=root.querySelector('#c-undo');
+  if(undo) undo.onclick=async()=>{
+    if(state.logs[key]) delete state.logs[key][h.id];
+    await save(); closeModal(); render();
+  };
+  root.querySelector('#c-cancel').onclick=closeModal;
+  root.querySelector('#mbg').onclick=ev=>{if(ev.target.id==='mbg')closeModal()};
+}
+
+function exportData(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`atomico-backup-${todayKey()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importData(file){
+  const r=new FileReader();
+  r.onload=async()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!Array.isArray(d.habits)) throw new Error('formato inválido');
+      if(!confirm(`Importar backup con ${d.habits.length} hábitos. Esto REEMPLAZA todos los datos actuales. ¿Continuar?`))return;
+      state={habits:d.habits,logs:d.logs||{},reviews:d.reviews||[],exams:d.exams||[],restDays:d.restDays||{}};
+      await save(); render();
+      alert('Backup importado ✓');
+    }catch(err){ alert('No se pudo leer el archivo: '+err.message) }
+  };
+  r.readAsText(file);
+}
+
 function closeModal(){ document.getElementById('modal-root').innerHTML='' }
 
 /* ================= Eventos ================= */
 function bindEvents(){
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
-  document.querySelectorAll('[data-toggle]').forEach(el=>el.onclick=async()=>{
-    const id=el.dataset.toggle,key=todayKey();
-    state.logs[key]=state.logs[key]||{};
-    const cur=state.logs[key][id];
-    state.logs[key][id]={done:!(cur&&cur.done)};
-    await save(); render();
+  document.querySelectorAll('[data-toggle]').forEach(el=>el.onclick=()=>{
+    const h=state.habits.find(x=>x.id===el.dataset.toggle);
+    if(h) openCheckModal(h);
   });
+  const rc=document.querySelector('[data-rest]');
+  if(rc) rc.onclick=async()=>{
+    const k=todayKey();
+    if(state.restDays[k]) delete state.restDays[k]; else state.restDays[k]=true;
+    await save(); render();
+  };
   document.querySelectorAll('[data-edit]').forEach(el=>el.onclick=()=>{
     openHabitModal(state.habits.find(h=>h.id===el.dataset.edit));
   });
@@ -527,6 +702,35 @@ function bindEvents(){
     await save(); render();
   });
   const rb=document.querySelector('[data-review]'); if(rb)rb.onclick=openReviewModal;
+  // Metas
+  const ne=document.querySelector('[data-newexam]'); if(ne)ne.onclick=openExamModal;
+  document.querySelectorAll('[data-topic]').forEach(el=>el.onclick=async()=>{
+    const [exId,tId]=el.dataset.topic.split('|');
+    const ex=state.exams.find(x=>x.id===exId); if(!ex)return;
+    const t=ex.topics.find(x=>x.id===tId); if(!t)return;
+    t.done=!t.done; await save(); render();
+  });
+  document.querySelectorAll('[data-addtopic]').forEach(b=>b.onclick=async()=>{
+    const ex=state.exams.find(x=>x.id===b.dataset.addtopic); if(!ex)return;
+    const inp=document.querySelector(`[data-topicinput="${ex.id}"]`);
+    const t=inp.value.trim(); if(!t)return;
+    ex.topics.push({id:uid(),t,done:false});
+    await save(); render();
+  });
+  document.querySelectorAll('[data-delexam]').forEach(b=>b.onclick=async()=>{
+    const ex=state.exams.find(x=>x.id===b.dataset.delexam); if(!ex)return;
+    if(!confirm(`¿Eliminar la meta "${ex.name}" y su temario?`))return;
+    state.exams=state.exams.filter(x=>x.id!==ex.id);
+    await save(); render();
+  });
+  // Datos
+  const eb=document.querySelector('[data-export]'); if(eb)eb.onclick=exportData;
+  const ib=document.querySelector('[data-import]');
+  if(ib) ib.onclick=()=>{
+    const f=document.getElementById('import-file');
+    f.onchange=()=>{ if(f.files[0]) importData(f.files[0]) };
+    f.click();
+  };
 }
 function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
 
