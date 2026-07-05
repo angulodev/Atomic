@@ -259,6 +259,11 @@ const AREAS = {
 const DOW = ['L','M','X','J','V','S','D']; // lunes=0 interno
 let state = { habits:[], logs:{}, reviews:[], exams:[], restDays:{} };
 let tab = 'hoy';
+const TABS=['hoy','habitos','metas','metricas','revision'];
+window.addEventListener('hashchange',()=>{
+  const t=location.hash.slice(1);
+  if(TABS.includes(t)&&t!==tab){ tab=t; render(); window.scrollTo(0,0) }
+});
 
 function uid(){ return Math.random().toString(36).slice(2,10) }
 function todayKey(d=new Date()){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}` }
@@ -273,6 +278,8 @@ async function load(){
   state.exams = state.exams || [];
   state.restDays = state.restDays || {};
   state.tasks = state.tasks || [];
+  const t0=location.hash.slice(1);
+  if(TABS.includes(t0)) tab=t0;
   render();
   if(!state.habits.length && !state.onboarded) openOnboarding();
 }
@@ -994,7 +1001,11 @@ function closeModal(){ document.getElementById('modal-root').innerHTML='' }
 
 /* ================= Eventos ================= */
 function bindEvents(){
-  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+    const t=b.dataset.tab;
+    if(t===tab) return;
+    location.hash='#'+t; // hashchange dispara el render
+  });
   document.querySelectorAll('[data-toggle]').forEach(el=>el.onclick=()=>{
     const h=state.habits.find(x=>x.id===el.dataset.toggle);
     if(h) openCheckModal(h);
