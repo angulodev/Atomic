@@ -172,6 +172,21 @@ input[type=number]{width:100%;background:var(--surface2);border:1px solid var(--
 .habit.rest{border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.05)}
 .habit.rest .chk{border-color:rgba(56,189,248,.6);border-style:dashed}
 .habit.rest .name{opacity:.7}
+/* ---- Onboarding ---- */
+.ob-step{text-align:center;padding:12px 4px}
+.ob-step .ob-icon{font-size:44px;margin-bottom:10px}
+.ob-step h3{font-size:19px;margin-bottom:8px}
+.ob-step p{font-size:14px;color:var(--muted);line-height:1.55}
+.ob-laws{text-align:left;margin-top:14px}
+.ob-laws div{display:flex;gap:10px;padding:7px 0;font-size:13.5px;color:var(--muted)}
+.ob-laws div b{color:var(--text)}
+.ob-dots{display:flex;justify-content:center;gap:7px;margin:16px 0 4px}
+.ob-dots span{width:7px;height:7px;border-radius:50%;background:var(--surface2)}
+.ob-dots span.on{background:var(--fire)}
+/* ---- Plantillas ---- */
+.tpl-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tpl{background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.tpl:active{border-color:var(--fire);color:var(--text)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -227,6 +242,51 @@ async function load(){
   state.exams = state.exams || [];
   state.restDays = state.restDays || {};
   render();
+  if(!state.habits.length && !state.onboarded) openOnboarding();
+}
+
+const TEMPLATES = [
+  {name:'Leer 10 páginas',area:'personal',identity:'un lector constante',cue:'Antes de dormir',days:[0,1,2,3,4,5,6]},
+  {name:'Ejercicio · 20 min',area:'salud',identity:'alguien activo',cue:'Después de despertar',days:[0,1,2,3,4]},
+  {name:'Estudiar idioma · 15 min',area:'ingles',identity:'alguien que domina otro idioma',cue:'Después del café de la mañana',days:[0,1,2,3,4,5,6]},
+  {name:'Meditar · 5 min',area:'salud',identity:'alguien en calma',cue:'Antes de dormir',days:[0,1,2,3,4,5,6]},
+  {name:'Estudiar para certificación · 30 min',area:'estudio',identity:'un profesional certificado',cue:'Después de almorzar',days:[0,1,2,3,4]},
+  {name:'Avanzar proyecto personal',area:'proyectos',identity:'alguien que termina lo que empieza',cue:'Después del trabajo',days:[0,1,2,3,4]}
+];
+
+function openOnboarding(){
+  let step=0;
+  const steps=[
+    `<div class="ob-step"><div class="ob-icon">⚛️</div>
+      <h3>Bienvenido a Sistema Atómico</h3>
+      <p>Basado en <i>Hábitos Atómicos</i> de James Clear: mejoras del 1% que, acumuladas día a día, se vuelven imparables. No perseguimos metas — construimos sistemas.</p></div>`,
+    `<div class="ob-step"><div class="ob-icon">🔑</div>
+      <h3>Las 4 leyes del hábito</h3>
+      <div class="ob-laws">
+        <div>👁️ <span><b>Hazlo obvio</b> — ancla cada hábito a una señal: "después de…"</span></div>
+        <div>✨ <span><b>Hazlo atractivo</b> — conéctalo a tu identidad: "para ser…"</span></div>
+        <div>🤏 <span><b>Hazlo fácil</b> — empieza con la versión de 2 minutos</span></div>
+        <div>🔥 <span><b>Hazlo satisfactorio</b> — rachas, átomos y logros</span></div>
+      </div></div>`,
+    `<div class="ob-step"><div class="ob-icon">🗳️</div>
+      <h3>Cada check es un voto</h3>
+      <p>Cada vez que cumples un hábito, votas por la persona en la que te quieres convertir. Un átomo a la vez.</p></div>`
+  ];
+  const root=document.getElementById('modal-root');
+  function paint(){
+    root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
+      ${steps[step]}
+      <div class="ob-dots">${steps.map((_,i)=>`<span class="${i===step?'on':''}"></span>`).join('')}</div>
+      <button class="btn" id="ob-next">${step<steps.length-1?'Siguiente':'Crear mi primer hábito'}</button>
+      <button class="btn ghost" id="ob-skip">Explorar primero</button>
+    </div></div>`;
+    root.querySelector('#ob-next').onclick=async()=>{
+      if(step<steps.length-1){ step++; paint() }
+      else { state.onboarded=true; await save(); closeModal(); openHabitModal(null) }
+    };
+    root.querySelector('#ob-skip').onclick=async()=>{ state.onboarded=true; await save(); closeModal() };
+  }
+  paint();
 }
 async function save(){ await Store.set('sistema-atomico-v1', state) }
 
@@ -573,6 +633,7 @@ function openHabitModal(h){
   root.innerHTML=`<div class="modal-bg" id="mbg"><div class="modal">
     <h3>${isNew?'Nuevo hábito':'Editar hábito'}</h3>
     <div class="sub">Hazlo obvio, atractivo, fácil y satisfactorio.</div>
+    ${isNew?`<div class="tpl-row">${TEMPLATES.map((t,i)=>`<button class="tpl" data-tpl="${i}">${t.name}</button>`).join('')}</div>`:''}
     <label>Hábito (empieza pequeño: versión de 2 minutos)</label>
     <input type="text" id="f-name" value="${esc(h.name)}" placeholder="Ej: Leer 10 páginas">
     <label>Área</label>
@@ -588,6 +649,17 @@ function openHabitModal(h){
     <button class="btn ghost" id="f-cancel">Cancelar</button>
   </div></div>`;
   const days=new Set(h.days);
+  function syncDays(){
+    root.querySelectorAll('#f-days button').forEach(b=>b.classList.toggle('on',days.has(+b.dataset.d)));
+  }
+  root.querySelectorAll('[data-tpl]').forEach(b=>b.onclick=()=>{
+    const t=TEMPLATES[+b.dataset.tpl];
+    root.querySelector('#f-name').value=t.name;
+    root.querySelector('#f-area').value=t.area;
+    root.querySelector('#f-identity').value=t.identity;
+    root.querySelector('#f-cue').value=t.cue;
+    days.clear(); t.days.forEach(d=>days.add(d)); syncDays();
+  });
   root.querySelectorAll('#f-days button').forEach(b=>b.onclick=()=>{
     const d=+b.dataset.d; days.has(d)?days.delete(d):days.add(d); b.classList.toggle('on');
   });
