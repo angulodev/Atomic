@@ -66,6 +66,18 @@ main{max-width:640px;margin:0 auto;padding:8px 16px 24px}
 .atom{width:15px;height:15px;border-radius:50%;background:var(--surface2);flex-shrink:0}
 .atoms-legend{display:flex;gap:6px;align-items:center;margin-top:10px;font-size:11px;color:var(--dim)}
 .atoms-legend .atom{width:9px;height:9px}
+/* ---- Calendario ---- */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-head .cm{font-family:'Archivo';font-weight:700;font-size:14px;text-transform:capitalize}
+.cal-head button{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:9px;width:34px;height:34px;font-size:16px;cursor:pointer}
+.cal-head button:disabled{opacity:.3}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-dow{text-align:center;font-size:10px;font-weight:700;color:var(--dim);padding:2px 0}
+.cal-day{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;background:var(--surface2);color:var(--muted);cursor:pointer;position:relative}
+.cal-day.blank{background:none;cursor:default}
+.cal-day.future{opacity:.28;cursor:default}
+.cal-day.today{outline:2px solid var(--fire);outline-offset:1px;color:var(--text)}
+.cal-day.rest{background:rgba(56,189,248,.16);color:var(--c-ingles)}
 .day-nav{display:flex;gap:8px;margin-top:12px}
 .day-nav button{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:9px 0;font-size:12.5px;font-weight:600;cursor:pointer}
 /* ---- Métricas ---- */
@@ -475,7 +487,7 @@ function viewHoy(){
         <div class="pct">${pct}%</div>
       </div>
     </div>
-    ${heatmapHTML(12)}
+    ${calendarHTML()}
   </div>
   <button class="rest-chip ${rest?'on':''}" data-rest="1">🛌 ${rest?'Hoy es día de descanso · tocar para desmarcar':'Marcar hoy como descanso'}</button>
   ${alerts}
@@ -484,27 +496,34 @@ function viewHoy(){
   ${votesCard}`;
 }
 
-function heatmapHTML(weeks){
-  const today=new Date();
-  const end=addDays(today,6-dowIdx(today));
-  const start=addDays(end,-(weeks*7-1));
-  let cells='';
-  for(let i=0;i<weeks*7;i++){
-    const d=addDays(start,i);
+let calOffset=0;
+function calendarHTML(){
+  const base=new Date(); base.setDate(1); base.setHours(0,0,0,0);
+  base.setMonth(base.getMonth()+calOffset);
+  const monthName=base.toLocaleDateString('es-CL',{month:'long',year:'numeric'});
+  const firstDow=dowIdx(base);
+  const daysInMonth=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
+  const today=new Date(); today.setHours(0,0,0,0);
+  const tKey=todayKey(today);
+  let cells=DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<firstDow;i++) cells+=`<div class="cal-day blank"></div>`;
+  for(let day=1;day<=daysInMonth;day++){
+    const d=new Date(base.getFullYear(),base.getMonth(),day);
+    const key=todayKey(d);
     const future=d>today;
-    const c=future?null:dayCompletion(d);
-    let bg='var(--surface2)',op=1;
-    if(future){op=.25}
-    else if(c!==null&&c>0){
-      bg='var(--fire)'; op=.25+c*.75;
-    }
-    cells+=`<div class="atom" style="background:${bg};opacity:${op}" title="${todayKey(d)}" ${future?'':`data-day="${todayKey(d)}"`}></div>`;
+    const rest=!future&&isRest(d);
+    const comp=future?null:dayCompletion(d);
+    let style='';
+    if(comp!==null&&comp>0) style=`background:rgba(251,146,60,${(.2+comp*.65).toFixed(2)});color:${comp>=.7?'#0E1116':'var(--text)'};${comp>=.7?'background:var(--fire);':''}`;
+    cells+=`<div class="cal-day ${future?'future':''} ${key===tKey?'today':''} ${rest?'rest':''}" ${future?'':`data-day="${key}"`} style="${style}">${day}</div>`;
   }
-  return `<div class="hm-wrap">
-    <div class="dow-col">${DOW.map(d=>`<div class="dow-lbl">${d}</div>`).join('')}</div>
-    <div class="atoms">${cells}</div>
+  return `
+  <div class="cal-head">
+    <button data-calprev="1">‹</button>
+    <span class="cm">${monthName}</span>
+    <button data-calnext="1" ${calOffset>=0?'disabled':''}>›</button>
   </div>
-  <div class="atoms-legend">Menos <div class="atom" style="background:var(--surface2)"></div><div class="atom" style="background:var(--fire);opacity:.35"></div><div class="atom" style="background:var(--fire);opacity:.65"></div><div class="atom" style="background:var(--fire)"></div> Más · últimas ${weeks} semanas</div>
+  <div class="cal-grid">${cells}</div>
   <div class="day-nav">
     <button data-yesterday="1">🕐 Registrar ayer</button>
     <button data-pickday="1">📅 Elegir otro día</button>
@@ -1056,8 +1075,10 @@ function bindEvents(){
     state.tasks=state.tasks.filter(t=>!t.done);
     await save(); render();
   };
-  // Heatmap: editar días pasados
-  document.querySelectorAll('.atom[data-day]').forEach(el=>el.onclick=()=>openDayModal(el.dataset.day));
+  // Calendario: editar días pasados
+  document.querySelectorAll('[data-day]').forEach(el=>el.onclick=()=>openDayModal(el.dataset.day));
+  const cp=document.querySelector('[data-calprev]'); if(cp)cp.onclick=()=>{calOffset--;render()};
+  const cn=document.querySelector('[data-calnext]'); if(cn)cn.onclick=()=>{if(calOffset<0){calOffset++;render()}};
   const yb=document.querySelector('[data-yesterday]');
   if(yb) yb.onclick=()=>openDayModal(todayKey(addDays(new Date(),-1)));
   const pb=document.querySelector('[data-pickday]');
