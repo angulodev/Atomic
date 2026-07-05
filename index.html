@@ -59,10 +59,15 @@ main{max-width:640px;margin:0 auto;padding:8px 16px 24px}
 .empty{text-align:center;color:var(--muted);padding:32px 16px;font-size:14px}
 .empty .big{font-size:32px;margin-bottom:8px}
 /* ---- Heatmap átomos ---- */
-.atoms{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:4px;justify-content:start;overflow-x:auto;padding-bottom:4px}
-.atom{width:11px;height:11px;border-radius:50%;background:var(--surface2);flex-shrink:0}
+.hm-wrap{display:flex;gap:6px;align-items:flex-start}
+.dow-col{display:grid;grid-template-rows:repeat(7,1fr);gap:5px}
+.dow-lbl{width:12px;height:15px;font-size:9px;font-weight:600;color:var(--dim);display:flex;align-items:center;justify-content:center}
+.atoms{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:5px;justify-content:start;overflow-x:auto;padding-bottom:4px;flex:1}
+.atom{width:15px;height:15px;border-radius:50%;background:var(--surface2);flex-shrink:0}
 .atoms-legend{display:flex;gap:6px;align-items:center;margin-top:10px;font-size:11px;color:var(--dim)}
 .atoms-legend .atom{width:9px;height:9px}
+.day-nav{display:flex;gap:8px;margin-top:12px}
+.day-nav button{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:9px 0;font-size:12.5px;font-weight:600;cursor:pointer}
 /* ---- Métricas ---- */
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
@@ -495,8 +500,16 @@ function heatmapHTML(weeks){
     }
     cells+=`<div class="atom" style="background:${bg};opacity:${op}" title="${todayKey(d)}" ${future?'':`data-day="${todayKey(d)}"`}></div>`;
   }
-  return `<div class="atoms">${cells}</div>
-  <div class="atoms-legend">Menos <div class="atom" style="background:var(--surface2)"></div><div class="atom" style="background:var(--fire);opacity:.35"></div><div class="atom" style="background:var(--fire);opacity:.65"></div><div class="atom" style="background:var(--fire)"></div> Más · últimas ${weeks} semanas</div>`;
+  return `<div class="hm-wrap">
+    <div class="dow-col">${DOW.map(d=>`<div class="dow-lbl">${d}</div>`).join('')}</div>
+    <div class="atoms">${cells}</div>
+  </div>
+  <div class="atoms-legend">Menos <div class="atom" style="background:var(--surface2)"></div><div class="atom" style="background:var(--fire);opacity:.35"></div><div class="atom" style="background:var(--fire);opacity:.65"></div><div class="atom" style="background:var(--fire)"></div> Más · últimas ${weeks} semanas</div>
+  <div class="day-nav">
+    <button data-yesterday="1">🕐 Registrar ayer</button>
+    <button data-pickday="1">📅 Elegir otro día</button>
+    <input type="date" id="day-pick" max="${todayKey()}" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
+  </div>`;
 }
 
 function viewHabitos(){
@@ -1045,6 +1058,14 @@ function bindEvents(){
   };
   // Heatmap: editar días pasados
   document.querySelectorAll('.atom[data-day]').forEach(el=>el.onclick=()=>openDayModal(el.dataset.day));
+  const yb=document.querySelector('[data-yesterday]');
+  if(yb) yb.onclick=()=>openDayModal(todayKey(addDays(new Date(),-1)));
+  const pb=document.querySelector('[data-pickday]');
+  if(pb) pb.onclick=()=>{
+    const dp=document.getElementById('day-pick');
+    dp.onchange=()=>{ if(dp.value && dp.value<=todayKey()) openDayModal(dp.value) };
+    try{ dp.showPicker() }catch(e){ dp.click() }
+  };
   // Bitácora: búsqueda en vivo
   const bs=document.getElementById('bit-search');
   if(bs) bs.oninput=()=>{ document.getElementById('bit-list').innerHTML=bitacoraListHTML(bs.value.trim()) };
