@@ -17,7 +17,7 @@
   --bg:#0E1116; --surface:#161B23; --surface2:#1C232E; --border:#242E3B;
   --text:#E8EDF4; --muted:#8A96A6; --dim:#5A6575;
   --fire:#FB923C; --ok:#34D399;
-  --c-ingles:#38BDF8; --c-estudio:#A78BFA; --c-proyectos:#34D399; --c-personal:#FBBF24;
+  --c-ingles:#38BDF8; --c-estudio:#A78BFA; --c-proyectos:#34D399; --c-personal:#FBBF24; --c-salud:#F472B6;
   --radius:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -204,21 +204,15 @@ const Store = {
 
 /* ================= Estado ================= */
 const AREAS = {
-  ingles:{name:'Inglés',color:'var(--c-ingles)',hex:'#38BDF8'},
-  estudio:{name:'Estudio / Certs',color:'var(--c-estudio)',hex:'#A78BFA'},
+  ingles:{name:'Idiomas',color:'var(--c-ingles)',hex:'#38BDF8'},
+  estudio:{name:'Estudio',color:'var(--c-estudio)',hex:'#A78BFA'},
   proyectos:{name:'Proyectos',color:'var(--c-proyectos)',hex:'#34D399'},
-  personal:{name:'Personal',color:'var(--c-personal)',hex:'#FBBF24'}
+  personal:{name:'Personal',color:'var(--c-personal)',hex:'#FBBF24'},
+  salud:{name:'Salud',color:'var(--c-salud)',hex:'#F472B6'}
 };
 const DOW = ['L','M','X','J','V','S','D']; // lunes=0 interno
 let state = { habits:[], logs:{}, reviews:[], exams:[], restDays:{} };
 let tab = 'hoy';
-
-const seedHabits = [
-  {id:uid(),name:'Fluido · 15 min de inglés',area:'ingles',identity:'alguien fluido en inglés',cue:'Después de tomar café en la mañana',days:[0,1,2,3,4,5,6],archived:false},
-  {id:uid(),name:'Estudiar cert ServiceNow · 30 min',area:'estudio',identity:'un consultor certificado',cue:'Después de almorzar',days:[0,1,2,3,4],archived:false},
-  {id:uid(),name:'Avanzar 1 tarea de proyecto (KDP/SaaS)',area:'proyectos',identity:'alguien que termina lo que empieza',cue:'Después de cerrar el trabajo del día',days:[0,1,2,3,4],archived:false},
-  {id:uid(),name:'Leer 10 páginas',area:'personal',identity:'un lector constante',cue:'Antes de dormir',days:[0,1,2,3,4,5,6],archived:false}
-];
 
 function uid(){ return Math.random().toString(36).slice(2,10) }
 function todayKey(d=new Date()){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}` }
@@ -230,7 +224,6 @@ function weekKey(d=new Date()){ const x=addDays(d,-dowIdx(d)); return todayKey(x
 async function load(){
   const s = await Store.get('sistema-atomico-v1');
   if(s){ state = s }
-  else { state.habits = seedHabits; await save() }
   state.exams = state.exams || [];
   state.restDays = state.restDays || {};
   render();
@@ -466,7 +459,7 @@ function viewMetas(){
     </div>`;
   }).join('');
   return `
-  ${cards||`<div class="card"><div class="empty"><div class="big">🎯</div>Sin metas activas.<br>Crea una con fecha objetivo — ideal para tu cert de ServiceNow.</div></div>`}
+  ${cards||`<div class="card"><div class="empty"><div class="big">🎯</div>Sin metas activas.<br>Crea una con fecha objetivo — un examen, certificación o entrega importante.</div></div>`}
   <button class="btn" data-newexam="1">+ Nueva meta con fecha</button>`;
 }
 
@@ -476,7 +469,7 @@ function openExamModal(){
     <h3>Nueva meta</h3>
     <div class="sub">Un examen, certificación o entrega con fecha límite.</div>
     <label>Nombre</label>
-    <input type="text" id="e-name" placeholder="Ej: Cert ServiceNow CSA">
+    <input type="text" id="e-name" placeholder="Ej: Examen de certificación">
     <label>Fecha objetivo</label>
     <input type="text" id="e-date" placeholder="AAAA-MM-DD" inputmode="numeric">
     <button class="btn" id="e-save">Crear meta</button>
@@ -536,7 +529,7 @@ function viewMetricas(){
     <div class="badges">${badges.map(b=>`<div class="badge ${b.ok?'ok':'locked'}"><div class="be">${b.e}</div><div class="bn">${b.n}</div></div>`).join('')}</div>
   </div>
   <div class="card"><h2>Bitácora de estudio <small>últimos registros</small></h2>
-    <input type="text" id="bit-search" placeholder="Buscar en tus notas… (ej: flows, past simple)" style="margin-bottom:10px">
+    <input type="text" id="bit-search" placeholder="Buscar en tus notas…" style="margin-bottom:10px">
     <div id="bit-list">${bitacoraListHTML('')}</div>
   </div>
   <button class="btn" data-share="1">📤 Compartir progreso como imagen</button>`;
@@ -581,11 +574,11 @@ function openHabitModal(h){
     <h3>${isNew?'Nuevo hábito':'Editar hábito'}</h3>
     <div class="sub">Hazlo obvio, atractivo, fácil y satisfactorio.</div>
     <label>Hábito (empieza pequeño: versión de 2 minutos)</label>
-    <input type="text" id="f-name" value="${esc(h.name)}" placeholder="Ej: Fluido · 15 min de inglés">
+    <input type="text" id="f-name" value="${esc(h.name)}" placeholder="Ej: Leer 10 páginas">
     <label>Área</label>
     <select id="f-area">${Object.entries(AREAS).map(([k,a])=>`<option value="${k}" ${h.area===k?'selected':''}>${a.name}</option>`).join('')}</select>
     <label>Identidad — "para ser…" (ley del cambio de identidad)</label>
-    <input type="text" id="f-identity" value="${esc(h.identity||'')}" placeholder="alguien fluido en inglés">
+    <input type="text" id="f-identity" value="${esc(h.identity||'')}" placeholder="alguien constante">
     <label>Apilamiento — "Después de…" (hazlo obvio)</label>
     <input type="text" id="f-cue" value="${esc(h.cue||'')}" placeholder="Después de tomar café en la mañana">
     <label>Días</label>
@@ -665,7 +658,7 @@ function openCheckModal(h,key){
     <label>Minutos (opcional)</label>
     <input type="number" id="c-min" min="0" value="${e.min||''}" placeholder="15">
     <label>Nota — ¿qué avanzaste? (opcional)</label>
-    <textarea id="c-note" placeholder="Ej: simple past en Fluido, módulo de flows…">${esc(e.note||'')}</textarea>
+    <textarea id="c-note" placeholder="Ej: capítulo 3, tema nuevo, repaso…">${esc(e.note||'')}</textarea>
     <button class="btn" id="c-save">${done?'Guardar cambios':'Marcar como hecho ✓'}</button>
     <button class="btn ghost" id="c-rest" style="border-color:rgba(56,189,248,.4);color:var(--c-ingles)">🛌 ${rst?'Quitar descanso':'Descanso solo en este hábito'}</button>
     ${done?'<button class="btn danger" id="c-undo">Desmarcar</button>':''}
